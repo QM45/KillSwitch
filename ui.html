@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <script type="text/javascript" src="./qwebchannel.js"></script>
+        <script type="text/javascript">
+            //BEGIN SETUP
+            window.onload = function() {
+                var baseUrl = "ws://localhost:12345";
+                var socket = new WebSocket(baseUrl);
+                socket.onclose = function()
+                {
+                    console.error("web channel closed");
+                };
+                socket.onerror = function(error)
+                {
+                    console.error("web channel error: " + error);
+                };
+                socket.onopen = function()
+                {
+                    new QWebChannel(socket, function(channel) {
+                        // make killswitch object accessible globally
+                        window.killswitch = channel.objects.killswitch;
+
+                        document.getElementById("enable").onclick = function() {
+                            killswitch.Enable();
+                        }
+                        document.getElementById("disable").onclick = function() {
+                            killswitch.Disable();
+                        }
+                        killswitch.PropagateState.connect(function(message) {
+                            document.getElementById("state").innerHTML = "Killswitch is " + message;
+                        });
+                        killswitch.RequestState();
+                    });
+                }
+            }
+            //END SETUP
+        </script>
+    </head>
+    <body>
+        <label id="state">Killswitch is Unknown</label><br>
+        <input type="submit" id="enable" value="Enable" onclick="javascript:click();" />
+        <input type="submit" id="disable" value="Disable" onclick="javascript:click();" />
+    </body>
+</html>
