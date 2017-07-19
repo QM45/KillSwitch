@@ -8,3 +8,6 @@ The responsibility to monitor traffic lies on the firewall, so it would be natur
 1. Monitoring the actual state of a rule object with wmi events.
 2. Internal state object can be removed, and the actual status of a rule instance will be queried directly from wmi with every user request.
 3. Ability to block specific IP addresses.
+
+# Setup notes
+App should be run with admin rights.
