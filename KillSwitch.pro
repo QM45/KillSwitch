@@ -1,13 +1,10 @@
-QT += core webchannel websockets widgets
-QT -= gui
-
+QT += core gui webchannel websockets webenginewidgets
+greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 CONFIG += c++11
 
 QMAKE_CXXFLAGS += /Zc:strictStrings-
 
 TARGET = KillSwitch
-CONFIG += console
-CONFIG -= app_bundle
 
 TEMPLATE = app
 
@@ -33,4 +30,14 @@ HEADERS += \
     websockettransport.h
 
 DISTFILES += \
-    ui.html
+    ui.html \
+    qwebchannel.js
+
+copydata.commands += $(COPY_DIR) $$shell_path($$PWD/ui.html) $$shell_path($$OUT_PWD) \
+    & $(COPY_DIR) $$shell_path($$PWD/qwebchannel.js) $$shell_path($$OUT_PWD)
+first.depends = $(first) copydata
+export(first.depends)
+export(copydata.commands)
+QMAKE_EXTRA_TARGETS += first copydata
+
+

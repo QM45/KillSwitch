@@ -1,5 +1,3 @@
-#include <QCoreApplication>
-
 #include <QDesktopServices>
 #include <QUrl>
 #include <QDir>
@@ -7,6 +5,9 @@
 #include "websocketclientwrapper.h"
 #include <QtWebSockets/QWebSocketServer>
 #include <QWebChannel>
+#include <QApplication>
+#include <QMainWindow>
+#include <QWebEngineView>
 
 #define _WIN32_DCOM
 #include <iostream>
@@ -17,7 +18,6 @@ using namespace std;
 #pragma comment(lib, "wbemuuid.lib")
 
 #include <sstream>
-#include <thread>
 #include <memory>
 #include <mutex>
 
@@ -28,7 +28,6 @@ public:
     explicit KillSwitch(QObject *parent = 0)
         :QObject(parent)
     {
-        //m_ruleMonitoringIsEnabled.store(false);
         InitializeComAndWMI();
         GetFirewallRuleClassObject();
         WriteFirewallRuleInstanceIfNotPresent(sDisabled);
@@ -71,10 +70,22 @@ private:
     {
         HRESULT hres{};
         // Initialize COM.
-        hres = CoInitializeEx(0, COINIT_MULTITHREADED);
+        hres = CoInitializeEx(0, COINIT_APARTMENTTHREADED);
         if (FAILED(hres))
-            OnFatalError("Failed to initialize COM library. Error code = 0x", hres);
-        m_comIsInitialized = true;
+        {
+            if(hres == RPC_E_CHANGED_MODE)
+                m_comIsInitialized = false;
+            else
+                OnFatalError("Failed to initialize COM library. Error code = 0x", hres);
+        }
+        else
+        {
+            m_comIsInitialized = true;
+        }
+
+        stringstream errStr;
+        errStr << hex << endl;
+        std::cout<<errStr.str();
 
         // Initialize
         hres = CoInitializeSecurity(
@@ -104,7 +115,7 @@ private:
         if (FAILED(hres))
             OnFatalError("Failed to create IWbemLocator object. Error code = 0x", hres);
 
-        // Connect to the root\cimv2 namespace with the
+        // Connect to the root\StandardCimv2 namespace with the
         // current user and obtain pointer pSvc
         // to make IWbemServices calls.
 
@@ -149,58 +160,6 @@ private:
             OnFatalError("Could not get computer name. ", 0);
         return hostName;
     }
-    /*
-    void MonitorRule()
-    {
-        HRESULT hres{};
-        IEnumWbemClassObject* pEventEnumerator{};
-        std::wstringstream query;
-        query<<L"SELECT * FROM __InstanceModificationEvent WHERE InstanceID=\""<< sRuleGUID <<L"\"";
-        do
-        {
-            hres = m_pSvc->ExecNotificationQuery(L"WQL", (BSTR)query.str().c_str()
-                                          , WBEM_FLAG_RETURN_IMMEDIATELY | WBEM_FLAG_FORWARD_ONLY, 0
-                                          , &pEventEnumerator );
-            if(FAILED(hres))
-            {
-                if (hres == WBEM_E_NOT_FOUND)
-                    continue;
-                else
-                    OnFatalError("Could not execute notification query. ", hres);
-            }
-            else
-                break;
-
-        }while(true);
-
-
-        IWbemClassObject* pEventObject;
-        ULONG eventObjectCount{};
-        hres = pEventEnumerator->Next(WBEM_INFINITE, 1, &pEventObject, &eventObjectCount);
-        if((hres == WBEM_S_FALSE || hres == WBEM_S_NO_ERROR ) && eventObjectCount == 1)
-        {
-            //do stuff
-            int a = 42;
-        }
-        else
-        {
-            OnFatalError("Unexpecter response from notification query. ", hres);
-        }
-    }
-
-    void StartRuleMonitoring()
-    {
-        if(monitorThread.get() != nullptr)
-        {
-            m_ruleMonitoringIsEnabled.store(false);
-            //release the enum handle somehow;
-            monitorThread->join();
-        }
-        m_ruleMonitoringIsEnabled.store(true);
-        monitorThread.reset(new std::thread(std::bind(&KillSwitch::MonitorRule, this)));
-        int x = 32;
-    }
-    */
     void GetFirewallRuleClassObject()
     {
         HRESULT hres{};
@@ -311,8 +270,6 @@ private:
             CoUninitialize();
     }
 private:
-    //std::atomic<bool> m_ruleMonitoringIsEnabled;
-    //std::unique_ptr<std::thread> monitorThread;
     IWbemClassObject* m_pFirewallRuleClassObj{};
     IWbemClassObject* m_pFirewallRuleInst{};
     IWbemServices* m_pSvc{};
@@ -337,7 +294,7 @@ wstring KillSwitch::sRuleName   = L"KillSwitch Rule";
 
 int main(int argc, char *argv[])
 {
-    QCoreApplication a(argc, argv);
+    QApplication a(argc, argv);
 
     // setup the QWebSocketServer
     QWebSocketServer server(QStringLiteral("KillSwitch Server"), QWebSocketServer::NonSecureMode);
@@ -359,12 +316,19 @@ int main(int argc, char *argv[])
     {
         KillSwitch killswitch;
         channel.registerObject(QStringLiteral("killswitch"), &killswitch);
-        std::cout<<"Initialization complete.\n";
+        qInfo("Initialization complete.");
+
+        QMainWindow w;
+        QWebEngineView *view = new QWebEngineView(&w);
+        w.setCentralWidget(view);
+        view->load(QUrl("file:///ui.html"));
+        w.show();
+
         return a.exec();
     }
     catch(std::exception& ex)
     {
-        std::cerr<<ex.what();
+        qFatal(ex.what());
     }
 }
 
