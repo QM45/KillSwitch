@@ -1,4 +1,4 @@
-# KillSwitch
+# WMINetworkTrafficDisabler
 A qt core application which creates firewall rules using WMI COM API to block outgoing traffic. Uses simple QWebEngine-based UI.
 
 # How it works
